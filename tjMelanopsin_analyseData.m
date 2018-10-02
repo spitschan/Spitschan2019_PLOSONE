@@ -1,3 +1,5 @@
+clearvars; close all;
+
 %% Define the participant list
 theSubjects = {'2018_02_06_s001' ...
     '2018_02_06_s002' ...
@@ -12,34 +14,38 @@ theSubjects = {'2018_02_06_s001' ...
     '2018_02_09_s011'};
 
 NSubjects = length(theSubjects);
+
+% Define some paths
 basePath = 'data';
 
 %% Define the trial order
 % Define the orders
-theOrders = [3, 2, 1, 4 ; ...
-    1, 4, 2, 3 ; ...
-    1, 2, 3, 4 ; ...
-    3, 1, 4, 2 ; ...
-    1, 3, 2, 4 ; ...
-    4, 2, 3, 1 ; ...
-    1, 4, 3, 2 ; ...
-    2, 3, 4, 1 ; ...
+theOrders = [1, 2, 3, 4 ; ...
     3, 4, 2, 1 ; ...
-    2, 4, 3, 1 ; ...
-    4, 3, 2, 1 ; ...
-    3, 1, 4, 2 ; ...
+    3, 2, 1, 4 ; ...
+    1, 3, 4, 2 ; ...
+    3, 1, 2, 4 ; ...
+    4, 2, 1, 3 ; ...
+    3, 4, 1, 2 ; ...
     2, 1, 4, 3 ; ...
-    2, 4, 3, 1 ; ...
-    4, 2, 3, 1 ; ...
-    3, 4, 1, 2];
+    1, 4, 2, 3 ; ...
+    2, 4, 1, 3 ; ...
+    4, 1, 2, 3 ; ...
+    1, 3, 4, 2 ; ...
+    2, 3, 4, 1 ; ...
+    2, 4, 1, 3 ; ...
+    4, 2, 1, 3 ; ...
+    1, 4, 3, 2];
+
+
 
 % Define the labels
-theLabels = {'LFX' 'MEL' 'LMS' 'REF'};
-theLabelsLong = {'Light flux' 'Melanopsin' 'LMS' 'Reference'};
-theRGB = [0 0 0 ; ...
+theLabels = {'LMS' 'MEL' 'LFX' 'REF'}; 
+theLabelsLong = {'LMS'  'Melanopsin' 'Light flux' 'Reference'};
+theRGB = [254 196 79 ; ...
     67 162 202 ; ...
-    254 196 79 ; ...
-    189 189 189];
+    10 10 10 ; ...
+    255 255 255]/255;
 
 %% Define camera info
 frequencyHz = 30;
@@ -52,7 +58,6 @@ NTotalCycles = 90;
 cycleStepSamples = 120;
 theCyclesStart0 = 1:cycleStepSamples:(cycleStepSamples*NTotalCycles);
 theCyclesEnd0 = cycleStepSamples:cycleStepSamples:(cycleStepSamples*NTotalCycles);
-
 
 sparkLineFigure = figure;
 c = 1;
@@ -68,7 +73,7 @@ for ii = 1:NSubjects
         theFolder = fullfile(basePath, theSubjects{participantNum}, num2str(ij-1, '%03g'), 'exports');
         
         %% Load the table
-        tmpAnnot = dir(fullfile(theFolder, '0-*'));
+        tmpAnnot = dir(fullfile(theFolder, '0*'));
         
         %% Load the annotations
         % Annotation indices are:
@@ -82,7 +87,7 @@ for ii = 1:NSubjects
         annotIdx = tjMelanopsin_loadAnnotationFile(annotPath);
         
         %% Load the data
-        dataPath = fullfile(theFolder, '000', 'pupil_positions.csv');
+        dataPath = fullfile(theFolder, tmpAnnot.name, 'pupil_positions.csv');
         [dataTraceRaw, timeTraceRaw, dataTraceIdx] = tjMelanopsin_loadDataFile(dataPath);
         
         % Associate the indices
@@ -131,7 +136,7 @@ for ii = 1:NSubjects
         
         subplot_tight(11, 4, c);
         h = shadedErrorBar(x, theQs, theSEM); hold on;
-        h.mainLine.Color = theRGB(ij, :)/255;
+        h.mainLine.Color = theRGB(ij, :);
         h.mainLine.LineWidth = 2;
         h.edge(1).LineStyle = 'none';
         h.edge(2).LineStyle = 'none';
@@ -149,14 +154,14 @@ for ii = 1:NSubjects
         
         % Fit sine and cosine
         f = 0.25;
-        w = [sin(2*pi*f*x) ; cos(2*pi*f*x)]' \ theQs;
-        plot(x, [sin(2*pi*f*x) ; cos(2*pi*f*x)]'*w, '-r', 'LineWidth', 2); hold on;
+        w = [sin(2*pi*f*x) ; cos(2*pi*f*x)]' \ -theQs;
+        plot(x, -[sin(2*pi*f*x) ; cos(2*pi*f*x)]'*w, '-r', 'LineWidth', 2); hold on;
         %plot(x, theQs);
         
         sw(ii, ij) = w(1);
         cw(ii, ij) = w(2);
         
-        theAmplitude(ii, ij) = sw(ii, ij)*sqrt(1+((cw(ii, ij)/sw(ii, ij))^2));
+        theAmplitude(ii, ij) = sqrt((cw(ii, ij).^2+sw(ii, ij).^2));
         thePhase(ii, ij) = atan2(cw(ii, ij),sw(ii, ij));
         
         theComplexNum(ii, ij) = theAmplitude(ii, ij)*cos(thePhase(ii, ij)) + sqrt(-1)*theAmplitude(ii, ij)*sin(thePhase(ii, ij))
@@ -169,13 +174,64 @@ set(sparkLineFigure, 'PaperPosition', [0 0 10 25]);
 set(sparkLineFigure, 'PaperSize', [10 25]);
 set(sparkLineFigure, 'Color', 'w');
 set(sparkLineFigure, 'InvertHardcopy', 'off');
-saveas(sparkLineFigure, 'Fig2.pdf', 'pdf');
+saveas(sparkLineFigure, 'figures/Fig2.pdf', 'pdf');
 
 %%
 theAmplitudeMean = abs(mean(theComplexNum))
 thePhaseMean = angle(mean(theComplexNum))
 
+%% Show amplitude and phase
+ampPhaseFigure = figure;
+theAmplitudePct = theAmplitude*100;
+subplot(2, 1, 1);
+for ii = 1:4
+plot((theAmplitudePct(:, ii)), 5-ii, 'ok', 'MarkerFaceColor', theRGB(ii, :)); hold on
+theMean = mean(theAmplitudePct(:, ii));
+theSD = std((theAmplitudePct(:, ii)));
+theSEM = theSD / sqrt(size(theAmplitudePct, 1));
+plot([theMean theMean], [5-(ii-0.3) 5-(ii+0.3)], '-r', 'LineWidth', 1.2); hold on
+plot([theMean-theSEM theMean+theSEM], [5-ii 5-ii], '-r', 'LineWidth', 1.2); hold on
+if ii == 4
+   plot([theMean theMean], [0 5], ':k'); 
+end
+end
+xlim([0 10]);
+ylim([0 5]);
+pbaspect([1 0.4 1]);
+xlabel('Amplitude [\Delta%]');
+ylabel('Direction');
+set(gca, 'YTick', 1:4, 'YTickLabel', {theLabelsLong{end:-1:1}});
+%set(gca, 'XTick', [-180:60:180]);
+plot([0 0], [0 5], ':k');
+box off; set(gca, 'TickDir', 'out');
+title('Amplitude');
 
+
+subplot(2, 1, 2);
+for ii = 1:4
+plot(rad2deg(thePhase(:, ii)), 5-ii, 'ok', 'MarkerFaceColor', theRGB(ii, :)); hold on
+theMean = rad2deg(circ_mean((thePhase(:, ii))));
+theSD = rad2deg(circ_std((thePhase(:, ii))));
+theSEM = theSD / sqrt(size(thePhase, 1));
+plot([theMean theMean], [5-(ii-0.3) 5-(ii+0.3)], '-r', 'LineWidth', 1.2); hold on
+plot([theMean-theSEM theMean+theSEM], [5-ii 5-ii], '-r', 'LineWidth', 1.2); hold on
+end
+xlim([-180 180]); ylim([0 5]);
+pbaspect([1 0.4 1]);
+xlabel('Phase angle [\circ]');
+ylabel('Direction');
+set(gca, 'YTick', 1:4, 'YTickLabel', {theLabelsLong{end:-1:1}});
+set(gca, 'XTick', [-180:60:180]);
+plot([0 0], [0 5], ':k');
+box off; set(gca, 'TickDir', 'out');
+title('Phase');
+
+
+set(ampPhaseFigure, 'PaperPosition', [0 0 10 10]);
+set(ampPhaseFigure, 'PaperSize', [10 10]);
+set(ampPhaseFigure, 'Color', 'w');
+set(ampPhaseFigure, 'InvertHardcopy', 'off');
+saveas(ampPhaseFigure, 'figures/Fig3.pdf', 'pdf');
 
 %% Calculate the difference
 for ii = 1:11
@@ -191,204 +247,28 @@ for ii = 1:11
     axis off;
 end
 
-%%
-polarPlotFigure = figure;
-for ii = 1:4
-    subplot(1, 5, ii);
-    polar(0, 9, 'ok'); hold on;
-    h0 = polar(thePhase(:, ii), 100*theAmplitude(:, ii), 'ok'); hold on
-    h0.MarkerFaceColor = theRGB(ii, :)/255;
-end
-subplot(1, 5, 5);
-for ii = 1:4
-    h1 = polar(thePhaseMean(ii), 100*theAmplitudeMean(ii), 'ok'); hold on
-    h1.MarkerSize = 10;
-    h1.MarkerFaceColor = theRGB(ii, :)/255;
-    h1.MarkerEdgeColor = 'r';
-end
-
-set(polarPlotFigure, 'PaperPosition', [0 0 30 10]);
-set(polarPlotFigure, 'PaperSize', [30 10]);
-set(polarPlotFigure, 'Color', 'w');
-set(polarPlotFigure, 'InvertHardcopy', 'off');
-saveas(polarPlotFigure, 'Fig3.pdf', 'pdf');
 
 %% Plot
-subplot(1, 2, 1);
+summationFigure = figure;
 plot([0 10], [0 10], ':k'); hold on
-plot(100*abs(theComplexNum(:, 1)), 100*abs(theComplexNum(:, 3)+theComplexNum(:, 2)), 'ok', 'MarkerFaceColor', [44 162 95]/255);
+plot(100*abs(theComplexNum(:, 3)), 100*abs(theComplexNum(:, 1)+theComplexNum(:, 2)), 'ok', 'MarkerFaceColor', [44 162 95]/255);
+plot(100*abs(theComplexNum(:, 3)), 100*abs(theComplexNum(:, 1)), 'sk', 'MarkerFaceColor', 0.8*[254 196 79]/255, 'MarkerEdgeColor', 'k');
 xlim([0 10]); ylim([0 10]);
 pbaspect([1 1 1]);
 box off; set(gca, 'TickDir', 'out');
 xlabel('Amplitude light flux [%]');
-ylabel('Amplitude (LMS+Mel) [%]');
-[RHO1,PVAL1] = corr(abs(theComplexNum(:, 1)), abs(theComplexNum(:, 4)))
-[RHO2,PVAL2] = corr(abs(theComplexNum(:, 1)), abs(theComplexNum(:, 3)+theComplexNum(:, 2)))
-text(4, 1, ['r=' num2str(RHO2, '%.2f') ', p=' num2str(PVAL2, '%.4f')]);
-%text(4, 2, ['r=' num2str(RHO2) ', p=' num2str(PVAL2)]);
+ylabel('Amplitude composite [%]');
+disp('LMS and light flux')
+[RHO1,PVAL1] = corr(abs(theComplexNum(:, 3)), abs(theComplexNum(:, 1)))
 
-subplot(1, 2, 2);
-plot([-pi pi], [-pi pi], ':k'); hold on
-plot(angle(theComplexNum(:, 1)), angle(theComplexNum(:, 3)+theComplexNum(:, 2)), 'ok', 'MarkerFaceColor', [44 162 95]/255);
-xlim([-pi pi]); ylim([-pi pi]);
-pbaspect([1 1 1]);
-box off; set(gca, 'TickDir', 'out');
-xlabel('Phase light flux');
-ylabel('Phase (LMS+Mel)');
-
-set(gcf, 'PaperPosition', [0 0 15 10]);
-set(gcf, 'PaperSize', [15 10]);
-set(gcf, 'Color', 'w');
-set(gcf, 'InvertHardcopy', 'off');
-saveas(gcf, 'Fig4.pdf', 'pdf');
-
-%%
-subplot(1, 3, 1);
-plot(-theAmplitude(:, 1), -theAmplitude(:, 3), 'ok', 'MarkerFaceColor', 'k')
-xlim([0 8]);
-ylim([0 8]);
-xlabel('Light flux Amplitude [%]');
-ylabel('LMS Amplitude [%]');
-
-subplot(1, 3, 2);
-plot(-theAmplitude(:, 1), -theAmplitude(:, 2), 'ok', 'MarkerFaceColor', 'k')
-xlim([0 8]);
-ylim([0 8]);
-xlabel('Light flux Amplitude [%]');
-ylabel('Melanopsin Amplitude [%]');
-
-subplot(1, 3, 3);
-plot(-theAmplitude(:, 3), -theAmplitude(:, 2), 'ok', 'MarkerFaceColor', 'k')
-xlim([0 8]);
-ylim([0 8]);
-xlabel('LMS Amplitude [%]');
-ylabel('Melanopsin Amplitude [%]');
+disp('LMS+mel and light flux')
+[RHO2,PVAL2] = corr(abs(theComplexNum(:, 3)), abs(theComplexNum(:, 1)+theComplexNum(:, 2)))
+text(4, 1, ['LMS+Mel: r=' num2str(RHO2, '%.2f') ', p=' num2str(PVAL2, '%.4f')]);
+text(4, 2, ['LMS only: r=' num2str(RHO1, '%.2f') ', p=' num2str(PVAL1, '%.4f')]);
 
 
-%% FFT
-load('contrastTimeCourse.mat')
-
-theAgeGroup = 1; % 1 = 20-24, 2 = 25-29, 3 = 30-35, 4 = 35-39
-
-startIdx = 1202;
-
-theRGB = SSTDefaultReceptorColors;
-
-subplot(5, 4, 4);
-[f, xft] = tjMelanopsin_doFFT(imgContent(theAgeGroup).ref.lConeMean);
-plot(f, xft, '-', 'Color', theRGB(1, :)); xlim([0.05 1]); ylim([0 1500]);
-xlabel('Frequency [Hz]'); pbaspect([1 1 1]); box off; ylabel('Power [aub]'); set (gca, 'TickDir', 'out');
-hold on; axis off; plot([0.05 0.05], [0 1500], '-k'); plot([0.05 1], [0 0], '-k');
-
-subplot(5, 4, 1);
-[f, xft] = tjMelanopsin_doFFT(imgContent(theAgeGroup).modLFX.lConeMean);
-plot(f, xft, '-', 'Color', theRGB(1, :)); xlim([0.05 1]); ylim([0 1500]);
-xlabel('Frequency [Hz]'); pbaspect([1 1 1]); box off; ylabel('Power [aub]'); set (gca, 'TickDir', 'out');
-hold on; axis off; plot([0.05 0.05], [0 1500], '-k'); plot([0.05 1], [0 0], '-k');
-
-subplot(5, 4, 2);
-[f, xft] = tjMelanopsin_doFFT(imgContent(theAgeGroup).modMel.lConeMean);
-plot(f, xft, '-', 'Color', theRGB(1, :)); xlim([0.05 1]); ylim([0 1500]);
-xlabel('Frequency [Hz]'); pbaspect([1 1 1]); box off; ylabel('Power [aub]'); set (gca, 'TickDir', 'out');
-hold on; axis off; plot([0.05 0.05], [0 1500], '-k'); plot([0.05 1], [0 0], '-k');
-
-subplot(5, 4, 3);
-[f, xft] = tjMelanopsin_doFFT(imgContent(theAgeGroup).modLMS.lConeMean);
-plot(f, xft, '-', 'Color', theRGB(1, :)); xlim([0.05 1]); ylim([0 1500]);
-xlabel('Frequency [Hz]'); pbaspect([1 1 1]); box off; ylabel('Power [aub]'); set (gca, 'TickDir', 'out');
-hold on; axis off; plot([0.05 0.05], [0 1500], '-k'); plot([0.05 1], [0 0], '-k');
-
-subplot(5, 4, 8);
-[f, xft] = tjMelanopsin_doFFT(imgContent(theAgeGroup).ref.mConeMean);
-plot(f, xft, '-', 'Color', theRGB(2, :)); xlim([0.05 1]); ylim([0 1500]);
-xlabel('Frequency [Hz]'); pbaspect([1 1 1]); box off; ylabel('Power [aub]'); set (gca, 'TickDir', 'out');
-hold on; axis off; plot([0.05 0.05], [0 1500], '-k'); plot([0.05 1], [0 0], '-k');
-
-subplot(5, 4, 5);
-[f, xft] = tjMelanopsin_doFFT(imgContent(theAgeGroup).modLFX.mConeMean);
-plot(f, xft, '-', 'Color', theRGB(2, :)); xlim([0.05 1]); ylim([0 1500]);
-xlabel('Frequency [Hz]'); pbaspect([1 1 1]); box off; ylabel('Power [aub]'); set (gca, 'TickDir', 'out');
-hold on; axis off; plot([0.05 0.05], [0 1500], '-k'); plot([0.05 1], [0 0], '-k');
-
-subplot(5, 4, 6);
-[f, xft] = tjMelanopsin_doFFT(imgContent(theAgeGroup).modMel.mConeMean);
-plot(f, xft, '-', 'Color', theRGB(2, :)); xlim([0.05 1]); ylim([0 1500]);
-xlabel('Frequency [Hz]'); pbaspect([1 1 1]); box off; ylabel('Power [aub]'); set (gca, 'TickDir', 'out');
-hold on; axis off; plot([0.05 0.05], [0 1500], '-k'); plot([0.05 1], [0 0], '-k');
-
-subplot(5, 4, 7);
-[f, xft] = tjMelanopsin_doFFT(imgContent(theAgeGroup).modLMS.mConeMean);
-plot(f, xft, '-', 'Color', theRGB(2, :)); xlim([0.05 1]); ylim([0 1500]);
-xlabel('Frequency [Hz]'); pbaspect([1 1 1]); box off; ylabel('Power [aub]'); set (gca, 'TickDir', 'out');
-hold on; axis off; plot([0.05 0.05], [0 1500], '-k'); plot([0.05 1], [0 0], '-k');
-
-subplot(5, 4, 12);
-[f, xft] = tjMelanopsin_doFFT(imgContent(theAgeGroup).ref.sConeMean);
-plot(f, xft, '-', 'Color', theRGB(3, :)); xlim([0.05 1]); ylim([0 1500]);
-xlabel('Frequency [Hz]'); pbaspect([1 1 1]); box off; ylabel('Power [aub]'); set (gca, 'TickDir', 'out');
-hold on; axis off; plot([0.05 0.05], [0 1500], '-k'); plot([0.05 1], [0 0], '-k');
-
-subplot(5, 4, 9);
-[f, xft] = tjMelanopsin_doFFT(imgContent(theAgeGroup).modLFX.sConeMean);
-plot(f, xft, '-', 'Color', theRGB(3, :)); xlim([0.05 1]); ylim([0 1500]);
-xlabel('Frequency [Hz]'); pbaspect([1 1 1]); box off; ylabel('Power [aub]'); set (gca, 'TickDir', 'out');
-hold on; axis off; plot([0.05 0.05], [0 1500], '-k'); plot([0.05 1], [0 0], '-k');
-
-subplot(5, 4, 10);
-[f, xft] = tjMelanopsin_doFFT(imgContent(theAgeGroup).modMel.sConeMean);
-plot(f, xft, '-', 'Color', theRGB(3, :)); xlim([0.05 1]); ylim([0 1500]);
-xlabel('Frequency [Hz]'); pbaspect([1 1 1]); box off; ylabel('Power [aub]'); set (gca, 'TickDir', 'out');
-hold on; axis off; plot([0.05 0.05], [0 1500], '-k'); plot([0.05 1], [0 0], '-k');
-
-subplot(5, 4, 11);
-[f, xft] = tjMelanopsin_doFFT(imgContent(theAgeGroup).modLMS.sConeMean);
-plot(f, xft, '-', 'Color', theRGB(3, :)); xlim([0.05 1]); ylim([0 1500]);
-xlabel('Frequency [Hz]'); pbaspect([1 1 1]); box off; ylabel('Power [aub]'); set (gca, 'TickDir', 'out');
-hold on; axis off; plot([0.05 0.05], [0 1500], '-k'); plot([0.05 1], [0 0], '-k');
-
-subplot(5, 4, 16);
-[f, xft] = tjMelanopsin_doFFT(imgContent(theAgeGroup).ref.melMean);
-plot(f, xft, '-', 'Color', theRGB(4, :)); xlim([0.05 1]); ylim([0 1500]);
-xlabel('Frequency [Hz]'); pbaspect([1 1 1]); box off; ylabel('Power [aub]'); set (gca, 'TickDir', 'out');
-hold on; axis off; plot([0.05 0.05], [0 1500], '-k'); plot([0.05 1], [0 0], '-k');
-
-subplot(5, 4, 13);
-[f, xft] = tjMelanopsin_doFFT(imgContent(theAgeGroup).modLFX.melMean);
-plot(f, xft, '-', 'Color', theRGB(4, :)); xlim([0.05 1]); ylim([0 1500]);
-xlabel('Frequency [Hz]'); pbaspect([1 1 1]); box off; ylabel('Power [aub]'); set (gca, 'TickDir', 'out');
-hold on; axis off; plot([0.05 0.05], [0 1500], '-k'); plot([0.05 1], [0 0], '-k');
-
-subplot(5, 4, 14);
-[f, xft] = tjMelanopsin_doFFT(imgContent(theAgeGroup).modMel.melMean);
-plot(f, xft, '-', 'Color', theRGB(4, :)); xlim([0.05 1]); ylim([0 1500]);
-xlabel('Frequency [Hz]'); pbaspect([1 1 1]); box off; ylabel('Power [aub]'); set (gca, 'TickDir', 'out');
-hold on; axis off; plot([0.05 0.05], [0 1500], '-k'); plot([0.05 1], [0 0], '-k');
-
-subplot(5, 4, 15);
-[f, xft] = tjMelanopsin_doFFT(imgContent(theAgeGroup).modLMS.melMean);
-plot(f, xft, '-', 'Color', theRGB(4, :)); xlim([0.05 1]); ylim([0 1500]); hold on;
-xlabel('Frequency [Hz]'); pbaspect([1 1 1]); box off; ylabel('Power [aub]'); set (gca, 'TickDir', 'out');
-hold on; axis off; plot([0.05 0.05], [0 1500], '-k'); plot([0.05 1], [0 0], '-k');
-
-cD = 1;
-for ii = 1:4
-    theData = [];
-    for ij = 1:11
-        theData = [theData theFFTPerCondition{ij, ii}];
-    end
-    subplot(5, 4, 16+ii);
-
-    xlim([0.05 1]); ylim([0 500]);
-    plot(0.5*[0.25 0.25], [0 500], ':r', 'LineWidth', 1.5);  hold on;
-    plot([0.25 0.25], [0 500], ':r', 'LineWidth', 1.5);
-    plot(2*[0.25 0.25], [0 500], ':r', 'LineWidth', 1.5);
-        plot(fx, mean(theData, 2), '-k');
-    xlabel('Frequency [Hz]'); pbaspect([1 1 1]); box off; ylabel('Power [aub]'); set (gca, 'TickDir', 'out');
-    set(gca,'Color',[0.9 0.9 0.9])
-    hold on; axis off; plot([0.05 0.05], [0 500], '-k'); plot([0.05 1], [0 0], '-k');
-end
-set(gcf, 'PaperPosition', [0 0 10 15]);
-set(gcf, 'PaperSize', [10 15]);
-set(gcf, 'Color', 'w');
-set(gcf, 'InvertHardcopy', 'off');
-saveas(gcf, 'Fig5.pdf', 'pdf');
+set(summationFigure, 'PaperPosition', [0 0 10 10]);
+set(summationFigure, 'PaperSize', [10 10]);
+set(summationFigure, 'Color', 'w');
+set(summationFigure, 'InvertHardcopy', 'off');
+saveas(summationFigure, 'figures/Fig4.pdf', 'pdf');

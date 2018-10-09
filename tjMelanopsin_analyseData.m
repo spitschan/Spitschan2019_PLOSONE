@@ -272,3 +272,14 @@ set(summationFigure, 'PaperSize', [10 10]);
 set(summationFigure, 'Color', 'w');
 set(summationFigure, 'InvertHardcopy', 'off');
 saveas(summationFigure, 'figures/Fig4.pdf', 'pdf');
+
+%%
+rad2deg(circ_mean(unwrap(angle(theComplexNum(:, 1))) - unwrap(angle(theComplexNum(:, 3)))))
+rad2deg(circ_mean(unwrap(angle(theComplexNum(:, 1)+theComplexNum(:, 2))) - unwrap(angle(theComplexNum(:, 3)))))
+
+rad2deg(circ_std(unwrap(angle(theComplexNum(:, 1))) - unwrap(angle(theComplexNum(:, 3)))))
+rad2deg(circ_std(unwrap(angle(theComplexNum(:, 1)+theComplexNum(:, 2))) - unwrap(angle(theComplexNum(:, 3)))))
+
+%%
+A = unwrap(angle(theComplexNum(:, 1))) - unwrap(angle(theComplexNum(:, 3)));
+B = unwrap(angle(theComplexNum(:, 1)+theComplexNum(:, 2))) - unwrap(angle(theComplexNum(:, 3)))
